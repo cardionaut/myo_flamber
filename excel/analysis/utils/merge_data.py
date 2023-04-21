@@ -26,7 +26,6 @@ class MergeData:
         self.checked_src = os.path.join(config.dataset.out_dir, '4_checked', dir_name)
         self.merged_dir = os.path.join(config.dataset.out_dir, '5_merged')
         self.dims = config.dataset.dims
-        # self.impute = config.merge.impute
         self.peak_values = config.merge.peak_values
         self.mdata_src = config.dataset.mdata_src
         self.target_label = config.analysis.experiment.target_label
@@ -41,6 +40,8 @@ class MergeData:
         if self.metadata:  # always want subject IDs and label
             to_add = ['redcap_id', 'pat_id', self.target_label]
             self.metadata.extend([col for col in to_add if col not in self.metadata])
+        elif len(self.metadata) == 0:  # special mode to merge all available metadata
+            self.metadata = []
         else:
             self.metadata = [self.target_label]
 
@@ -68,13 +69,7 @@ class MergeData:
         tables = pd.DataFrame(tables_list, index=subjects, columns=self.col_names)
         tables = tables.rename_axis('subject').reset_index()  # add a subject column and reset index
 
-        # if self.impute:  # data imputation (merged data)
-        #     tables = self.impute_data(tables)
-        # else:  # remove patients with any NaN values
-        #     tables = tables.dropna(axis=0, how='any')
-        # # logger.debug(len(tables.index))
-
-        if self.metadata:  # read and clean metadata
+        if self.metadata or len(self.metadata) == 0:  # read and clean metadata
             tables = self.add_metadata(tables)
 
         tables = tables.sort_values(by='subject')  # save the tables for analysis
@@ -129,9 +124,6 @@ class MergeData:
             to_keep = ['global', 'endo', 'epi']
             table = table[table.roi.str.contains('|'.join(to_keep)) == True]
 
-        # if self.impute:  # data imputation (table-wise)
-        #     table.iloc[:, info_cols:] = self.impute_data(table.iloc[:, info_cols:])
-
         # Circumferential and longitudinal strain and strain rate peak at minimum value
         if 'strain' in self.table_name and ('circumf' in self.table_name or 'longit' in self.table_name):
             peak = table.iloc[:, info_cols:].min(axis=1, skipna=True)  # compute peak values over sample cols
@@ -152,23 +144,6 @@ class MergeData:
 
         self.subject_data = pd.concat((self.subject_data, pd.Series(list(table.iloc[:, 0]), index=col_names)), axis=0)
 
-    # def impute_data(self, table: pd.DataFrame):
-    #     """Impute missing values in table"""
-    #     imputer = IterativeImputer(
-    #         initial_strategy='median', max_iter=100, random_state=self.seed, keep_empty_features=True
-    #     )
-    #     if 'subject' in table.columns:
-    #         tmp = table['subject']
-    #         table = table.drop('subject', axis=1)
-    #         imputed_data = imputer.fit_transform(table)
-    #         imputed_data = pd.DataFrame(imputed_data, index=table.index, columns=table.columns)
-    #         table = pd.concat((tmp, imputed_data), axis=1)
-    #     else:
-    #         imputed_data = imputer.fit_transform(table)
-    #         table = pd.DataFrame(imputed_data, index=table.index, columns=table.columns)
-    #
-    #     return table
-
     def add_metadata(self, tables):
         """Add metadata to tables"""
         try:
@@ -178,7 +153,11 @@ class MergeData:
             mdata = None
 
         if mdata is not None:
-            mdata = mdata[self.metadata]
+            if len(self.metadata) != 0:
+                mdata = mdata[self.metadata]
+            else:
+                self.metadata = mdata.columns
+                self.metadata.drop(self.metadata[self.metadata.str.contains(self.target_label, case=False)])
             # clean some errors in metadata
             if 'mace' in self.metadata:  # TODO: add for other mace types as well (e.g. in function)
                 mdata.loc[mdata['mace'] == 999, 'mace'] = 0
@@ -227,33 +206,14 @@ class MergeData:
                 f'number of remaining subjects: {len(tables.index)}'
             )
 
-            # # Impute missing metadata if desired
-            # if self.impute:
-            #     indicator = MissingIndicator(missing_values=np.nan, features='all')
-            #     mask_missing_values = indicator.fit_transform(tables)
-            #     style_df = pd.DataFrame('', index=tables.index, columns=tables.columns)
-            #     style_df = style_df.mask(mask_missing_values, 'background-color: cyan')
-            #
-            #     tables = self.impute_data(tables)
-            #
-            #     os.makedirs(self.merged_dir, exist_ok=True)
-            #     tables.style.apply(lambda _: style_df, axis=None).to_excel(
-            #         os.path.join(self.merged_dir, f'{self.experiment_name}_highlighted_missing_metadata.xlsx')
-            #     )
-            #
-            # else:  # remove patients with any NaN values
-            #     logger.info(f'Number of patients before dropping NaN metadata: {len(tables.index)}')
-            #     tables = tables.dropna(axis=0, how='any')
-            #     logger.info(f'Number of patients after dropping NaN metadata: {len(tables.index)}')
-
             # LGE/T2 columns
-            if 'LGE' in tables.columns and 'T2' in tables.columns:
-                lge_bool = tables['LGE'].astype(bool)
-                t2_bool = tables['T2'].astype(bool)
-                tables['LGE+/T2+'] = (lge_bool & t2_bool).astype(int)
-                tables['LGE+/T2-'] = (lge_bool & (~t2_bool)).astype(int)
-                tables['LGE-/T2+'] = ((~lge_bool) & t2_bool).astype(int)
-                tables['LGE-/T2-'] = ((~lge_bool) & (~t2_bool)).astype(int)
+            # if 'LGE' in tables.columns and 'T2' in tables.columns:
+            #     lge_bool = tables['LGE'].astype(bool)
+            #     t2_bool = tables['T2'].astype(bool)
+            #     tables['LGE+/T2+'] = (lge_bool & t2_bool).astype(int)
+            #     tables['LGE+/T2-'] = (lge_bool & (~t2_bool)).astype(int)
+            #     tables['LGE-/T2+'] = ((~lge_bool) & t2_bool).astype(int)
+            #     tables['LGE-/T2-'] = ((~lge_bool) & (~t2_bool)).astype(int)
 
             # Remove features containing the same value for all patients
             nunique = tables.nunique()

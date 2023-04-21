@@ -21,13 +21,12 @@ dataset:
   strict: False # strict behaviour for cleaner and checker, strict=False leads to fewer patients dropped and possible data imputation later
 
 merge:
-  impute: True # impute missing data
   peak_values: True # reduce data to peak values (i.e. lose time component)
   overwrite: True # overwrite merged data
 
 analysis:
   experiment:
-    name: "phenomapping" # experiment name (i.e. file name in which to store merged data)
+    name: "phenomapping_all_features" # experiment name (i.e. file name in which to store merged data)
     axes: ["long_axis", "short_axis"] # ['long_axis', 'short_axis']
     metrics: ["strain"] # ['strain', 'strain_rate', 'displacement', 'velocity']
     segments: ["roi"] # ['global', 'aha', 'roi']
