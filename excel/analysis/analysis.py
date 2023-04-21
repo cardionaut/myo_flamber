@@ -21,7 +21,6 @@ class Analysis:
     def __init__(self, config: DictConfig) -> None:
         self.config = config
         self.src_dir = config.dataset.out_dir
-        self.impute = config.merge.impute
         self.overwrite = config.merge.overwrite
         self.experiment_name = config.analysis.experiment.name
         self.target_label = config.analysis.experiment.target_label

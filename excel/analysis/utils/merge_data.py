@@ -15,7 +15,6 @@ from excel.global_helpers import checked_dir
 # from sklearn.impute import IterativeImputer, MissingIndicator
 
 
-
 class MergeData:
     """Extracts data for given localities, dims, axes, orientations and metrics"""
 
@@ -156,8 +155,10 @@ class MergeData:
             if len(self.metadata) != 0:
                 mdata = mdata[self.metadata]
             else:
-                self.metadata = mdata.columns
-                self.metadata.drop(self.metadata[self.metadata.str.contains(self.target_label, case=False)])
+                self.metadata = [mdata for mdata in mdata.columns if not self.target_label.lower() in mdata.lower()]
+                self.metadata.append(self.target_label)
+                mdata = mdata[self.metadata]
+                logger.debug(mdata.columns)
             # clean some errors in metadata
             if 'mace' in self.metadata:  # TODO: add for other mace types as well (e.g. in function)
                 mdata.loc[mdata['mace'] == 999, 'mace'] = 0
