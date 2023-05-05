@@ -158,7 +158,6 @@ class MergeData:
                 self.metadata = [mdata for mdata in mdata.columns if not self.target_label.lower() in mdata.lower()]
                 self.metadata.append(self.target_label)
                 mdata = mdata[self.metadata]
-                logger.debug(mdata.columns)
             # clean some errors in metadata
             if 'mace' in self.metadata:  # TODO: add for other mace types as well (e.g. in function)
                 mdata.loc[mdata['mace'] == 999, 'mace'] = 0
@@ -170,6 +169,7 @@ class MergeData:
             if 'fhxcad___1' in self.metadata:
                 mdata.loc[~mdata['fhxcad___1'].isin([0, 1]), 'fhxcad___1'] = 0
                 mdata = mdata.rename(columns={'fhxcad___1': 'T2'})
+            mdata = mdata.replace(999, np.nan)
 
             # clean subject IDs
             mdata = mdata[mdata['redcap_id'].notna()]  # remove rows without redcap_id
@@ -184,28 +184,28 @@ class MergeData:
             tables = tables.rename(columns={'redcap_id': 'subject'})
 
             # remove any metadata columns containing less than threshold data
-            threshold = 0.9
-            num_features = len(tables.columns)
-            tables = tables.dropna(axis=1, thresh=threshold * len(tables.index))
-            logger.info(
-                f'Removed {num_features - len(tables.columns)} features with less than {int(threshold*100)}% data, '
-                f'number of remaining features: {len(tables.columns)}'
-            )
-            assert (
-                self.target_label in tables.columns
-            ), f'Target label {self.target_label} was removed due to NaN threshold.'
+            # threshold = 0.9
+            # num_features = len(tables.columns)
+            # tables = tables.dropna(axis=1, thresh=threshold * len(tables.index))
+            # logger.info(
+            #     f'Removed {num_features - len(tables.columns)} features with less than {int(threshold*100)}% data, '
+            #     f'number of remaining features: {len(tables.columns)}'
+            # )
+            # assert (
+            #     self.target_label in tables.columns
+            # ), f'Target label {self.target_label} was removed due to NaN threshold.'
 
             # remove these columns from the metadata list
-            self.metadata = [col for col in self.metadata if col in tables.columns]
-            self.config.analysis.experiment.metadata = self.metadata
+            # self.metadata = [col for col in self.metadata if col in tables.columns]
+            # self.config.analysis.experiment.metadata = self.metadata
 
             # remove any subject row containing less than threshold data
-            num_subjects = len(tables.index)
-            tables = tables.dropna(axis=0, thresh=threshold * len(tables.columns))
-            logger.info(
-                f'Removed {num_subjects - len(tables.index)} subjects with less than {int(threshold*100)}% data, '
-                f'number of remaining subjects: {len(tables.index)}'
-            )
+            # num_subjects = len(tables.index)
+            # tables = tables.dropna(axis=0, thresh=threshold * len(tables.columns))
+            # logger.info(
+            #     f'Removed {num_subjects - len(tables.index)} subjects with less than {int(threshold*100)}% data, '
+            #     f'number of remaining subjects: {len(tables.index)}'
+            # )
 
             # LGE/T2 columns
             # if 'LGE' in tables.columns and 'T2' in tables.columns:
@@ -217,8 +217,8 @@ class MergeData:
             #     tables['LGE-/T2-'] = ((~lge_bool) & (~t2_bool)).astype(int)
 
             # Remove features containing the same value for all patients
-            nunique = tables.nunique()
-            cols_to_drop = nunique[nunique == 1].index
-            tables = tables.drop(cols_to_drop, axis=1)
+            # nunique = tables.nunique()
+            # cols_to_drop = nunique[nunique == 1].index
+            # tables = tables.drop(cols_to_drop, axis=1)
 
         return tables
