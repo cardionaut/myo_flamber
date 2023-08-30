@@ -26,6 +26,7 @@ class MergeData:
         self.merged_dir = os.path.join(config.dataset.out_dir, '5_merged')
         self.dims = config.dataset.dims
         self.peak_values = config.merge.peak_values
+        self.keep_thresh = config.merge.keep_thresh
         self.mdata_src = config.dataset.mdata_src
         self.target_label = config.analysis.experiment.target_label
         self.experiment_name = config.analysis.experiment.name
@@ -33,7 +34,6 @@ class MergeData:
         self.orientations = config.analysis.experiment.orientations
         self.metrics = config.analysis.experiment.metrics
         self.metadata = config.analysis.experiment.metadata
-        self.seed = config.analysis.run.seed
         self.segments = config.analysis.experiment.segments
 
         if self.metadata:  # always want subject IDs and label
@@ -170,6 +170,7 @@ class MergeData:
                 mdata.loc[~mdata['fhxcad___1'].isin([0, 1]), 'fhxcad___1'] = 0
                 mdata = mdata.rename(columns={'fhxcad___1': 'T2'})
             mdata = mdata.replace(999, np.nan)
+            mdata = mdata.replace('999', '')
 
             # clean subject IDs
             mdata = mdata[mdata['redcap_id'].notna()]  # remove rows without redcap_id
@@ -183,29 +184,28 @@ class MergeData:
             tables = tables.drop('subject', axis=1)  # use redcap_id as subject id
             tables = tables.rename(columns={'redcap_id': 'subject'})
 
-            # remove any metadata columns containing less than threshold data
-            # threshold = 0.9
-            # num_features = len(tables.columns)
-            # tables = tables.dropna(axis=1, thresh=threshold * len(tables.index))
-            # logger.info(
-            #     f'Removed {num_features - len(tables.columns)} features with less than {int(threshold*100)}% data, '
-            #     f'number of remaining features: {len(tables.columns)}'
-            # )
-            # assert (
-            #     self.target_label in tables.columns
-            # ), f'Target label {self.target_label} was removed due to NaN threshold.'
+            # remove any metadata columns containing less than self.keep_thresh data
+            num_features = len(tables.columns)
+            tables = tables.dropna(axis=1, thresh=self.keep_thresh * len(tables.index))
+            logger.info(
+                f'Removed {num_features - len(tables.columns)} features with less than {int(self.keep_thresh*100)}% data, '
+                f'number of remaining features: {len(tables.columns)}'
+            )
+            assert (
+                self.target_label in tables.columns
+            ), f'Target label {self.target_label} was removed due to NaN self.keep_thresh.'
 
             # remove these columns from the metadata list
-            # self.metadata = [col for col in self.metadata if col in tables.columns]
-            # self.config.analysis.experiment.metadata = self.metadata
+            self.metadata = [col for col in self.metadata if col in tables.columns]
+            self.config.analysis.experiment.metadata = self.metadata
 
-            # remove any subject row containing less than threshold data
-            # num_subjects = len(tables.index)
-            # tables = tables.dropna(axis=0, thresh=threshold * len(tables.columns))
-            # logger.info(
-            #     f'Removed {num_subjects - len(tables.index)} subjects with less than {int(threshold*100)}% data, '
-            #     f'number of remaining subjects: {len(tables.index)}'
-            # )
+            # remove any subject row containing less than self.keep_thresh data
+            num_subjects = len(tables.index)
+            tables = tables.dropna(axis=0, thresh=self.keep_thresh * len(tables.columns))
+            logger.info(
+                f'Removed {num_subjects - len(tables.index)} subjects with less than {int(self.keep_thresh*100)}% data, '
+                f'number of remaining subjects: {len(tables.index)}'
+            )
 
             # LGE/T2 columns
             # if 'LGE' in tables.columns and 'T2' in tables.columns:

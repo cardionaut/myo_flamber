@@ -24,9 +24,6 @@ class Analysis:
         self.overwrite = config.merge.overwrite
         self.experiment_name = config.analysis.experiment.name
         self.target_label = config.analysis.experiment.target_label
-        self.explore_frac = config.analysis.run.verification.explore_frac
-        self.seed = config.analysis.run.seed
-        np.random.seed(self.seed)
 
     def __call__(self) -> None:
         merged_path = os.path.join(self.src_dir, '5_merged', f'{self.experiment_name}.xlsx')
